@@ -16,10 +16,9 @@
 
 #include "includes.h"
 
-#ifndef HAVE_CLOSEFROM
+#if !defined(HAVE_CLOSEFROM) || defined(BROKEN_CLOSEFROM)
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <unistd.h>
 #include <stdio.h>
 #ifdef HAVE_FCNTL_H
@@ -29,7 +28,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <unistd.h>
 #ifdef HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
@@ -107,9 +105,9 @@ closefrom(int lowfd)
 	if ((fdinfo_buf = malloc(sz)) == NULL)
 		goto fallback;
 	r = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, fdinfo_buf, sz);
-	if (r < 0 || r >= sz)
+	if (r < 0 || r > sz)
 		goto fallback;
-	for (i = 0; i < sz / (int)PROC_PIDLISTFD_SIZE; i++) {
+	for (i = 0; i < r / (int)PROC_PIDLISTFD_SIZE; i++) {
 		if (fdinfo_buf[i].proc_fd >= lowfd)
 			close(fdinfo_buf[i].proc_fd);
 	}
@@ -129,6 +127,11 @@ closefrom(int lowfd)
     struct dirent *dent;
     DIR *dirp;
     int len;
+
+#ifdef HAVE_CLOSE_RANGE
+	if (close_range(lowfd, INT_MAX, 0) == 0)
+		return;
+#endif
 
     /* Check for a /proc/$$/fd directory. */
     len = snprintf(fdpath, sizeof(fdpath), "/proc/%ld/fd", (long)getpid());

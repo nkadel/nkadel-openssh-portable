@@ -42,7 +42,7 @@
    is not part of the posix specification. */
 #define SAVED_IDS_WORK_WITH_SETEUID
 /* Saved effective uid. */
-static uid_t 	saved_euid = 0;
+static uid_t	saved_euid = 0;
 static gid_t	saved_egid = 0;
 #endif
 
@@ -162,8 +162,10 @@ restore_uid(void)
 	 * Propagate the real uid (usually more privileged) to effective uid
 	 * as well.
 	 */
-	setuid(getuid());
-	setgid(getgid());
+	if (setuid(getuid()) == -1)
+		fatal("%s: setuid failed: %s", __func__, strerror(errno));
+	if (setgid(getgid()) == -1)
+		fatal("%s: setgid failed: %s", __func__, strerror(errno));
 #endif /* SAVED_IDS_WORK_WITH_SETEUID */
 
 	if (setgroups(saved_egroupslen, saved_egroups) == -1)
